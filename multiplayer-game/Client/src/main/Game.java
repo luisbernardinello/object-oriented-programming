@@ -35,8 +35,8 @@ public class Game implements Runnable {
     }
 
 	private void initClasses() {
-		localPlayer = new Player(0, 0, (int) (64 * SCALE), (int) (40 * SCALE), 1);
-        remotePlayer = new Player(0, 0, (int) (64 * SCALE), (int) (40 * SCALE),2);
+		localPlayer = new Player(0, 0, (int) (64 * SCALE), (int) (40 * SCALE), 1, network);
+        remotePlayer = new Player(0, 0, (int) (64 * SCALE), (int) (40 * SCALE),2, network);
 		levelManager = new LevelManager(this);
 	}
 

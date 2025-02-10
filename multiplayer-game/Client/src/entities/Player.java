@@ -8,24 +8,26 @@ import java.awt.image.BufferedImage;
 import main.Game;
 import utilz.LoadSave;
 import utilz.Position;
+import utilz.Network;
 
 public class Player extends Entity {
     private BufferedImage[][] animations;
     private int aniTick, aniIndex, aniSpeed = 25;
     private int playerAction = IDLE;
-    private boolean moving = false, attacking = false,  inAir = false;
-    private boolean left, up, right, down;
-    private int playerSpeed = 2;
+    private boolean moving = false, attacking = false;
+    private boolean left, jump, right;
     private int[][] lvlData;
     private int movementFramesLeft = GetSpriteAmount(RUNNING);
     private final float xDrawOffset = 21 * Game.SCALE;
     private final float yDrawOffset = 4 * Game.SCALE;
     private Position position, variation;
+    private Network network;
 
-    public Player(float x, float y, int width, int height, int player) {
+    public Player(float x, float y, int width, int height, int player, Network network) {
         super(x, y, width, height);
         this.position = new Position((int) x, (int) y);
         this.variation = new Position(0, 0);
+        this.network = network;
         
         loadAnimations(player);
         initHitbox(x, y, 20 * Game.SCALE, 27 * Game.SCALE);
@@ -72,16 +74,12 @@ public class Player extends Entity {
             playerAction = IDLE;
         }
 
-		if (variation.y < 0) { // Se a posição Y estiver subindo
-			playerAction = JUMP;
-		} else if (variation.y > 0) { // Se a posição Y estiver descendo
-			playerAction = FALLING;
-		} else if (moving) {
-			playerAction = RUNNING;
-		} else {
-			playerAction = IDLE;
+		if (inAir) {
+			if (airSpeed < 0)
+                playerAction = JUMP;
+			else
+                playerAction = FALLING;
 		}
-
         if (attacking) {
             playerAction = ATTACK_1;
         }
@@ -109,6 +107,7 @@ public class Player extends Entity {
    
 
     public void updatePos(Position variation) {
+        
         if (variation == null || lvlData == null) {
             return;
         } 
@@ -117,25 +116,49 @@ public class Player extends Entity {
             if (movementFramesLeft > 0) {
                 movementFramesLeft--;  
             } else {
-                moving = false; // Apenas para IDLE depois do fim da animação
+                moving = false;
             }
             return;
         }
-
+    
         float newX = x + variation.x;
         float newY = y + variation.y;
-
+    
         boolean movedX = updateXPos(newX);
         boolean movedY = updateYPos(newY);
-
-        moving = movedX || movedY; // Atualiza `moving` corretamente!
-
+    
+        moving = movedX || movedY;
+    
         if (moving) {
             movementFramesLeft = GetSpriteAmount(RUNNING);
         }
 
-		if(variation.y < 0) inAir = true;
+        if (jump)
+            jump();
+
+        // Verifica se está no ar
+        if (!inAir && !IsEntityOnFloor(hitbox, lvlData)) {
+            inAir = true;
+            network.sendMovement("IN_AIR");
+        }
+    
+        // Verifica se tocou o chão
+        if (variation.y > 0 && !movedY) {
+            inAir = false;
+            network.sendMovement("GROUNDED");
+        }
+      
+        
     }
+
+    private void jump() {
+        if (inAir) return; // Impede saltos infinitos no ar
+
+        inAir = true;
+        variation.y = -15; // Define uma velocidade de pulo
+    }
+
+   
 
     private boolean updateXPos(float newX) {
         if (CanMoveHere(newX, hitbox.y, hitbox.width, hitbox.height, lvlData)) {
@@ -184,8 +207,6 @@ public class Player extends Entity {
     public void resetDirBooleans() {
         left = false;
         right = false;
-        up = false;
-        down = false;
     }
 
     public void setAttacking(boolean attacking) {
@@ -195,10 +216,9 @@ public class Player extends Entity {
 
     public boolean isLeft() { return left; }
     public void setLeft(boolean left) { this.left = left; }
-    public boolean isUp() { return up; }
-    public void setUp(boolean up) { this.up = up; }
     public boolean isRight() { return right; }
     public void setRight(boolean right) { this.right = right; }
-    public boolean isDown() { return down; }
-    public void setDown(boolean down) { this.down = down; }
+    public void setJump(boolean jump) {
+		this.jump = jump;
+	}
 }

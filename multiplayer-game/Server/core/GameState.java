@@ -12,10 +12,14 @@ public class GameState {
     private final Position[] positionVariations;
     private final Position[] absolutePositions;
     
-    private final float gravity = 1.5f; // Gravidade constante
-    private final float jumpSpeed = -15f; // Velocidade inicial do salto
-    private final float maxFallSpeed = 15f; // Velocidade máxima de queda
-    private final float[] verticalSpeed; // Velocidade vertical dos jogadores
+    private final float gravity = 1.5f;
+    private final float jumpSpeed = -15f;
+    private final float maxFallSpeed = 10f;
+    private final float moveSpeed = 5f;
+    private final float[] verticalSpeed;
+    private final boolean[] inAir;
+    private final boolean[] movingLeft;
+    private final boolean[] movingRight;
     private final Object lock = new Object();
 
     private GameState() {
@@ -24,7 +28,10 @@ public class GameState {
             new Position(INITIAL_POSITION_PLAYER1.x, INITIAL_POSITION_PLAYER1.y),
             new Position(INITIAL_POSITION_PLAYER2.x, INITIAL_POSITION_PLAYER2.y)
         };
-        this.verticalSpeed = new float[]{0, 0}; // Inicializa velocidade Y dos jogadores
+        this.verticalSpeed = new float[]{0, 0};
+        this.inAir = new boolean[]{false, false};
+        this.movingLeft = new boolean[]{false, false};
+        this.movingRight = new boolean[]{false, false};
     }
 
     public static synchronized GameState getInstance() {
@@ -34,79 +41,87 @@ public class GameState {
         return instance;
     }
 
-    /**
-     * 🔥 Aplica a gravidade continuamente
-     */
     public void applyGravity() {
         synchronized (lock) {
             for (int player = 0; player < 2; player++) {
-                verticalSpeed[player] += gravity; // Aplica gravidade
-                
-                if (verticalSpeed[player] > maxFallSpeed) {
-                    verticalSpeed[player] = maxFallSpeed; // Limita a velocidade de queda
+                if (inAir[player]) {
+                    verticalSpeed[player] += gravity;
+
+                    if (verticalSpeed[player] > maxFallSpeed) {
+                        verticalSpeed[player] = maxFallSpeed;
+                    }
+
+                    positionVariations[player].y = (int) verticalSpeed[player];
+                    absolutePositions[player].y += (int) verticalSpeed[player];
                 }
 
-                // Atualiza a variação de posição Y
-                positionVariations[player].y = (int) verticalSpeed[player];
-                absolutePositions[player].y += (int) verticalSpeed[player]; 
+                processHorizontalMovement(player);
             }
         }
     }
 
-    /**
-     * 🔥 Inicia um salto para o jogador
-     */
-    public void jump(int player) {
-        synchronized (lock) {
-            verticalSpeed[player] = jumpSpeed; // Define velocidade inicial do salto
+    private void processHorizontalMovement(int player) {
+        if (movingLeft[player]) {
+            positionVariations[player].x = (int) -moveSpeed;
+            absolutePositions[player].x -= moveSpeed;
+        }
+        if (movingRight[player]) {
+            positionVariations[player].x = (int) moveSpeed;
+            absolutePositions[player].x += moveSpeed;
+        }
+        if (!movingLeft[player] && !movingRight[player]) {
+            positionVariations[player].x = 0;
         }
     }
 
-    /**
-     * 🔥 Aplica movimento horizontal do jogador
-     */
+    public void jump(int player) {
+        synchronized (lock) {
+            if (!inAir[player]) {
+                verticalSpeed[player] = jumpSpeed;
+                inAir[player] = true;
+                positionVariations[player].y = (int) jumpSpeed;
+            }
+        }
+    }
+
     public void movement(int player, MovementDirection direction) {
         synchronized (lock) {
-            int dx = 0;
             
             switch (direction) {
                 case RIGHTWARD:
-                    dx = 10;
+                    movingRight[player] = true;
                     break;
                 case LEFTWARD:
-                    dx = -10;
+                    movingLeft[player] = true;
+                    break;
+                case STOP_RIGHT:
+                    movingRight[player] = false;
+                    break;
+                case STOP_LEFT:
+                    movingLeft[player] = false;
                     break;
                 case UPWARD:
-                    jump(player); // Pressionou "W", inicia o salto
+                    jump(player);
+                    break;
+                case IN_AIR:
+                    inAir[player] = true;  // 🔥 O jogador está no ar
+                    break;
+                case GROUNDED:
+                    inAir[player] = false; // 🔥 O jogador tocou o chão
+                    verticalSpeed[player] = 0; // Reseta a velocidade de queda
                     break;
             }
-
-            positionVariations[player].x = dx;
-            absolutePositions[player].x += dx;
         }
     }
 
-    /**
-     * 🔥 Retorna a variação da posição do jogador
-     */
+    
+
     public Position getPosition(int player) {
         synchronized (lock) {
             return positionVariations[player];
         }
     }
 
-    /**
-     * 🔥 Retorna a posição absoluta do jogador
-     */
-    public Position getAbsolutePosition(int player) {
-        synchronized (lock) {
-            return absolutePositions[player];
-        }
-    }
-
-    /**
-     * 🔥 Reseta a variação do movimento para evitar teleporte
-     */
     public void resetPosition() {
         synchronized (lock) {
             positionVariations[0].x = 0;

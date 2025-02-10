@@ -9,6 +9,8 @@ public abstract class Entity {
 
 	protected float x, y;
 	protected int width, height;
+	protected float airSpeed;
+	protected boolean inAir = false;
 	protected Rectangle2D.Float hitbox;
 
 	public Entity(float x, float y, int width, int height) {
