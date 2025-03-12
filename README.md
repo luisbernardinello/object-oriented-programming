@@ -1,5 +1,3 @@
-# Object Oriented Programming
-
 ![Unesp](https://img.shields.io/badge/BCC-UNESP-Bauru.svg)
 ![License](https://img.shields.io/badge/Code%20License-MIT-blue.svg)
 
